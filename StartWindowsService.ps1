@@ -2,6 +2,11 @@ param(
     [string]$serviceName
 )
 
+if (!(Get-Service $serviceName -ErrorAction SilentlyContinue)) {
+    Write-Error "Error: The $serviceName service does not exist on this computer."
+    exit 1
+}
+
 # Start the service
 Start-Service $serviceName
 
