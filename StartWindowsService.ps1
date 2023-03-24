@@ -1,3 +1,7 @@
+param(
+    [string]$serviceName
+)
+
 # Start the service
 Start-Service $serviceName
 
