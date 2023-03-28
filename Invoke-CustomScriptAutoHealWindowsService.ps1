@@ -174,7 +174,7 @@ Write-Output $WebHookData.RequestBody
         $RequestBody.VMResourceGroupName = $($RequestBodyObj.data.essentials.configurationItems).Split('/')[-5]
         $RequestBody.VMName = $($RequestBodyObj.data.essentials.configurationItems).Split('/')[-1]
         $RequestBody.ScriptFileName = [string]'AutoHealWindowsService.ps1'
-        $RequestBody.ServiceName = $($jsonobj.data.alertContext.condition.allOf.dimensions | where-object {$_.Name -ieq "SvcName"}).value
+        $RequestBody.ServiceName = $($RequestBodyObj.data.alertContext.condition.allOf.dimensions | where-object {$_.name -ieq "SvcName"}).value
 
 
         #endregion Check for mandatory variable
@@ -491,7 +491,7 @@ Write-Output $WebHookData.RequestBody
                                                         -StorageAccountName $RequestBody.StorageAccountName `
                                                         -StorageAccountKey $StorageAccountKey `
                                                         -Name $([io.path]::GetFileNameWithoutExtension($RequestBody.ScriptFileName)) `
-                                                        -arguments $arguments
+                                                        -argument $arguments
                 $Stopwatch.Stop()
                 Write-Output ("     * Added CustomScriptExtension [{0}] - Time Duration: Minutes [{1}] Seconds [{2}]" -f $RequestBody.ScriptFileName, $Stopwatch.Elapsed.Minutes , $Stopwatch.Elapsed.Seconds)
 
