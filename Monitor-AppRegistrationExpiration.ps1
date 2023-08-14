@@ -5,7 +5,7 @@ Disable-AzContextAutosave -Scope Process
 $AzureContext = (Connect-AzAccount -Identity).context
 
 # Set and store context
-$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+#$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 
 Get-AzSubscription
 
