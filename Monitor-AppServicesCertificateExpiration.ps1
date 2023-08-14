@@ -58,7 +58,7 @@ Function Post-LogAnalyticsData($customerId, $sharedKey, $body, $logType)
 $CustomerId = Get-AutomationVariable -Name 'WorkspaceID'
 $SharedKey = Get-AutomationVariable -Name 'WorkspaceKey'
 # Specify the name of the record type that you'll be creating
-$LogType = "AppRegistrationMonitoring"
+$LogType = "AppServicesCertificateMonitoring"
 
 $TimeStampField = Get-Date
 
