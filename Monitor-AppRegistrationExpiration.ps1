@@ -1,3 +1,5 @@
+Add-Type -AssemblyName System.Web
+
 # Ensures you do not inherit an AzContext in your runbook
 Disable-AzContextAutosave -Scope Process
 
@@ -5,60 +7,19 @@ Disable-AzContextAutosave -Scope Process
 $AzureContext = (Connect-AzAccount -Identity).context
 
 # Set and store context
-#$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+#AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 
 Get-AzSubscription
 
-Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $method, $contentType, $resource)
-{
-    $xHeaders = "x-ms-date:" + $date
-    $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
+$appId = Get-AutomationVariable -Name 'LogAnalyticsIngestionAppId'
+$appSecret = Get-AutomationVariable -Name 'LogAnalyticsIngestionAppSecret'
+$dceEndpoint = Get-AutomationVariable -Name 'dceEndpoint'
+$dcrImmutableId = Get-AutomationVariable -Name 'dcrImmutableId'
+$TenantId = Get-AutomationVariable -Name 'TenantId'
 
-    $bytesToHash = [Text.Encoding]::UTF8.GetBytes($stringToHash)
-    $keyBytes = [Convert]::FromBase64String($sharedKey)
-
-    $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-    $sha256.Key = $keyBytes
-    $calculatedHash = $sha256.ComputeHash($bytesToHash)
-    $encodedHash = [Convert]::ToBase64String($calculatedHash)
-    $authorization = 'SharedKey {0}:{1}' -f $customerId,$encodedHash
-    return $authorization
-}
-
-
-# Create the function to create and post the request
-Function Post-LogAnalyticsData($customerId, $sharedKey, $body, $logType)
-{
-    $method = "POST"
-    $contentType = "application/json"
-    $resource = "/api/logs"
-    $rfc1123date = [DateTime]::UtcNow.ToString("r")
-    $contentLength = $body.Length
-    $signature = Build-Signature `
-        -customerId $customerId `
-        -sharedKey $sharedKey `
-        -date $rfc1123date `
-        -contentLength $contentLength `
-        -method $method `
-        -contentType $contentType `
-        -resource $resource
-    $uri = "https://" + $customerId + ".ods.opinsights.azure.com" + $resource + "?api-version=2016-04-01"
-
-    $headers = @{
-        "Authorization" = $signature;
-        "Log-Type" = $logType;
-        "x-ms-date" = $rfc1123date;
-        "time-generated-field" = $TimeStampField;
-    }
-
-    $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $contentType -Headers $headers -Body $body -UseBasicParsing
-    return $response.StatusCode
-
-}
-$CustomerId = Get-AutomationVariable -Name 'WorkspaceID'
-$SharedKey = Get-AutomationVariable -Name 'WorkspaceKey'
 # Specify the name of the record type that you'll be creating
 $LogType = "AppRegistrationMonitoring"
+$streamName = "Custom-$($LogType)_CL"
 
 $TimeStampField = Get-Date
 
@@ -99,6 +60,12 @@ foreach ($AppJson in $Applications){
 
 
 $credinfo = @()
+
+$scope= [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")   
+$body = "client_id=$appId&scope=$scope&client_secret=$appSecret&grant_type=client_credentials";
+$headers = @{"Content-Type"="application/x-www-form-urlencoded"};
+$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
+$bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -Body $body -Headers $headers).access_token
     
 foreach ($cred in $allcreds){
 
@@ -119,23 +86,30 @@ $credinfo += [PSCustomObject] @{
 
 }
 
-$json = @"
-{  
-    "Name": "$($AppJson.DisplayName)",
-    "ObjectId": "$($AppJson.Id)",
-    "AppId": "$($AppJson.AppId)",
-    "StartDateTime": "$($cred.StartDateTime)",
-    "EndDateTime": "$($cred.EndDateTime)",
-    "KeyID": "$($cred.KeyId)",
-    "Owner": "$($OwnerName)",
-    "Status": "$($Status)"
-}
-"@
+$currentTime = Get-Date ([datetime]::UtcNow) -Format O
+$staticData = @"
+[
+    {  
+        "TimeGenerated": "$currentTime",
+        "Name": "$($AppJson.DisplayName)",
+        "ObjectId": "$($AppJson.Id)",
+        "AppId": "$($AppJson.AppId)",
+        "StartDateTime": "$($cred.StartDateTime)",
+        "EndDateTime": "$($cred.EndDateTime)",
+        "KeyID": "$($cred.KeyId)",
+        "Owner": "$($OwnerName)",
+        "Status": "$($Status)"
+    }
+]
+"@;
 
-$json
+$staticData
 
-Post-LogAnalyticsData -customerId $customerId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($json)) -logType $logType
+$body = $staticData;
+$headers = @{"Authorization"="Bearer $bearerToken";"Content-Type"="application/json"};
+$uri = "$dceEndpoint/dataCollectionRules/$dcrImmutableId/streams/$($streamName)?api-version=2021-11-01-preview"
 
+Invoke-RestMethod -Uri $uri -Method "Post" -Body $body -Headers $headers
 
 
 }
