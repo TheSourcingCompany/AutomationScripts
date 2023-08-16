@@ -41,6 +41,7 @@ $staticData = @"
     [
         {  
             "TimeGenerated": "$currentTime",
+            "Name" : "$($VMinfo.Name)"
             "Functie": "$($VMinfo.Functie)",
             "Locatie": "$($VMinfo.Locatie)",
             "resourceGroup": "$($VMinfo.resourceGroup)",
