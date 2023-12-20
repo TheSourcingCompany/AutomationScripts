@@ -64,6 +64,12 @@ function GenerateEmail {
             4 { $emailLocalPart = ($normalizedGivenName + $normalizedMiddleName + $normalizedFamilyName) -replace '\.{2,}', '.' }
             5 { $emailLocalPart = ($initials + $normalizedMiddleName + $normalizedFamilyName) -replace '\.{2,}', '.' }
             6 { $emailLocalPart = ($initials + '.' + $normalizedMiddleName + $normalizedFamilyName).Trim('.') }
+            7 { 
+                $firstInitial = $normalizedGivenName.Substring(0, 1)
+                $middleInitials = if ($middleName) { GetInitials $middleName } else { "" }
+                $emailLocalPart = $firstInitial + $middleInitials + $normalizedFamilyName
+            }
+    
             default { $emailLocalPart = @($initials, $normalizedMiddleName, $normalizedFamilyName) -join '.' -replace '\.{2,}', '.' }
         }
     
